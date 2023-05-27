@@ -5,7 +5,7 @@ set -eo pipefail
 MMS_URL_PREFIX=https://dl.fbaipublicfiles.com/mms/
 MAX_FAILS=3
 
-declare temp_dir last_dir list_file etag_file fails=0
+declare _grep_util='grep' temp_dir last_dir list_file etag_file fails=0
 trap teardown EXIT
 
 teardown() {
@@ -14,6 +14,14 @@ teardown() {
 }
 
 main() {
+    [ "$(uname -s)" = Darwin ] && {
+        # shellcheck disable=SC2015
+        command -v ggrep &>/dev/null && _grep_util=ggrep || {
+            echo 'GNU grep is required on macOS. Run "brew install grep" to install it.' >&2
+            return 1
+        }
+    }
+
     local dir="$1" start_url=https://raw.githubusercontent.com/facebookresearch/fairseq/main/examples/mms/README.md
 
     [ -z "$dir" ] && {
@@ -34,17 +42,17 @@ main() {
     list_file="$temp_dir/list.txt"
     etag_file="$dir/.etags"
     echo '-> Section 1/2: MMS'
-    curl -fsSL "$start_url" | grep -F '[download]' | ggrep -Po "(?<=$MMS_URL_PREFIX"')[^\)]+' >"$list_file"
+    curl -fsSL "$start_url" | $_grep_util -F '[download]' | $_grep_util -Po "(?<=$MMS_URL_PREFIX"')[^\)]+' >"$list_file"
     download_list
 
     echo '-> Section 2/2: TTS'
-    find asr -name '*_langs.html' -exec cat {} \; | ggrep -Po '(?<=<p> )\S+' | awk 'NR > 1 {print "tts/" $1 ".tar.gz"}' >"$list_file"
+    find asr -name '*_langs.html' -exec cat {} \; | $_grep_util -Po '(?<=<p> )\S+' | awk 'NR > 1 {print "tts/" $1 ".tar.gz"}' >"$list_file"
     download_list
 }
 
 download_list() {
     local i=0 count=0 part options etag
-    count=$(grep -c '' <"$list_file")
+    count=$($_grep_util -c '' <"$list_file")
 
     while read -r part; do
         [ -n "$part" ] || continue
@@ -69,21 +77,21 @@ download_list() {
         }
 
         # save etag for successfully downloaded files
-        etag=$(curl -I "$MMS_URL_PREFIX$part" | ggrep -Pio '(?<=etag: ")[^"]+' || true)
+        etag=$(curl -I "$MMS_URL_PREFIX$part" | $_grep_util -Pio '(?<=etag: ")[^"]+' || true)
         [ -z "$etag" ] || save_etag "$part" "$etag"
     done <"$list_file"
 }
 
 get_etag() {
     [ -f "$etag_file" ] || return 0
-    grep -q "$1 " "$list_file" || return 0
-    grep "$1 " "$etag_file" | cut -d' ' -f2
+    $_grep_util -q "$1 " "$list_file" || return 0
+    $_grep_util "$1 " "$etag_file" | cut -d' ' -f2
 }
 
 save_etag() {
     [ -f "$etag_file" ] && {
-        grep -q "$1 $2" "$list_file" && return
-        grep -q "$1 " "$list_file" || sed -i '\#'"$1 #d" "$etag_file"
+        $_grep_util -q "$1 $2" "$list_file" && return
+        $_grep_util -q "$1 " "$list_file" || sed -i '\#'"$1 #d" "$etag_file"
     }
     echo "$1 $2" >>"$etag_file"
 }
