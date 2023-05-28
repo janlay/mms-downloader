@@ -6,6 +6,7 @@ A downloader for Facebook's MMS data.
 - [x] Downloading TTS data for all languages
 - [x] Omitting previously downloaded files
 - [x] Resuming files that were previously interrupted
+- [x] Updating files that have new versions
 
 ## Usage
 1. Grab the [script](https://raw.githubusercontent.com/janlay/mms-downloader/master/mms-downloader.sh)

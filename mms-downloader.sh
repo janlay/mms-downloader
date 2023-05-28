@@ -77,7 +77,7 @@ download_list() {
         }
 
         # save etag for successfully downloaded files
-        etag=$(curl -I "$MMS_URL_PREFIX$part" | $_grep_util -Pio '(?<=etag: ")[^"]+' || true)
+        etag=$(curl -fsI "$MMS_URL_PREFIX$part" 2>/dev/null | $_grep_util -Pio '(?<=etag: ")[^"]+' || true)
         [ -z "$etag" ] || save_etag "$part" "$etag"
     done <"$list_file"
 }
